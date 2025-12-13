@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-// @ts-ignore
-const anime = require('animejs').default || require('animejs');
 import { GlowCard, CodeBlock, StatBadge } from "../components/FuturisticUI";
 
 // Dijkstra's Algorithm Visualization
@@ -275,6 +273,13 @@ const AStarViz: React.FC = () => {
   useEffect(() => {
     if (!isRunning) return;
 
+    let animeLib: any = null;
+
+    // Load anime.js
+    import('animejs').then((module: any) => {
+      animeLib = module.default || module;
+    });
+
     // A* algorithm
     const openSet = [{...start, g: 0, f: heuristic(start, goal)}];
     const cameFrom = new Map<string, {x: number, y: number}>();
@@ -306,13 +311,15 @@ const AStarViz: React.FC = () => {
         setPath(finalPath);
         
         // Animate path with anime.js
-        anime({
-          targets: '.path-segment',
-          strokeDashoffset: [anime.setDashoffset, 0],
-          easing: 'easeInOutSine',
-          duration: 1500,
-          delay: anime.stagger(100)
-        });
+        if (animeLib) {
+          animeLib({
+            targets: '.path-segment',
+            strokeDashoffset: [animeLib.setDashoffset, 0],
+            easing: 'easeInOutSine',
+            duration: 1500,
+            delay: animeLib.stagger(100)
+          });
+        }
         
         setIsRunning(false);
         return;
@@ -322,12 +329,14 @@ const AStarViz: React.FC = () => {
       setExplored(new Set(exploredSet));
 
       // Animate current cell
-      anime({
-        targets: `#cell-${current.x}-${current.y}`,
-        scale: [1, 1.2, 1],
-        duration: 300,
-        easing: 'easeOutElastic(1, .5)'
-      });
+      if (animeLib) {
+        animeLib({
+          targets: `#cell-${current.x}-${current.y}`,
+          scale: [1, 1.2, 1],
+          duration: 300,
+          easing: 'easeOutElastic(1, .5)'
+        });
+      }
 
       // Check neighbors
       const neighbors = [

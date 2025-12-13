@@ -1,6 +1,4 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
-// @ts-ignore
-const anime = require('animejs').default || require('animejs');
 import {
   logisticStep,
   iterateLogisticMap,
@@ -401,7 +399,7 @@ const MandelbrotZoom: React.FC = () => {
     return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
   };
 
-  const handleZoom = () => {
+  const handleZoom = async () => {
     setIsAnimating(true);
     
     // Anime.js zoom animation
@@ -409,7 +407,10 @@ const MandelbrotZoom: React.FC = () => {
       animationRef.current.pause();
     }
 
-    animationRef.current = anime({
+    const animeModule: any = await import('animejs');
+    const anime = animeModule.default || animeModule;
+
+    animationRef.current = (anime as any)({
       targets: { z: zoom },
       z: zoom * 2,
       duration: 2000,
