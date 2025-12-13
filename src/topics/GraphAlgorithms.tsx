@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+// @ts-ignore
+const anime = require('animejs').default || require('animejs');
 import { GlowCard, CodeBlock, StatBadge } from "../components/FuturisticUI";
 
 // Dijkstra's Algorithm Visualization
@@ -236,6 +238,249 @@ const GraphConnectivityViz: React.FC = () => {
   );
 };
 
+// A* Pathfinding Visualization
+const AStarViz: React.FC = () => {
+  const [isRunning, setIsRunning] = useState(false);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const width = 450;
+  const height = 300;
+  const gridSize = 15;
+  const cellSize = width / gridSize;
+
+  // Grid: 0 = empty, 1 = wall, 2 = start, 3 = goal
+  const grid = useMemo(() => [
+    [2,0,0,0,0,1,0,0,0,0,0,0,0,0,0],
+    [0,0,1,0,0,1,0,1,1,1,0,0,1,0,0],
+    [0,0,1,0,0,1,0,0,0,0,0,0,1,0,0],
+    [0,0,1,0,0,0,0,0,1,0,0,0,1,0,0],
+    [0,0,1,1,1,1,1,0,1,0,1,1,1,0,0],
+    [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0],
+    [0,1,1,1,1,1,0,0,1,1,1,1,1,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,1,1,1,1,1,1,1,0,0,1,1,1,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,3],
+  ], []);
+
+  const start = { x: 0, y: 0 };
+  const goal = { x: 14, y: 9 };
+
+  const heuristic = (a: {x: number, y: number}, b: {x: number, y: number}) => {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  };
+
+  const [explored, setExplored] = useState<Set<string>>(new Set());
+  const [path, setPath] = useState<{x: number, y: number}[]>([]);
+
+  useEffect(() => {
+    if (!isRunning) return;
+
+    // A* algorithm
+    const openSet = [{...start, g: 0, f: heuristic(start, goal)}];
+    const cameFrom = new Map<string, {x: number, y: number}>();
+    const gScore = new Map<string, number>();
+    gScore.set(`${start.x},${start.y}`, 0);
+    const exploredSet = new Set<string>();
+
+    const animateStep = () => {
+      if (openSet.length === 0) {
+        setIsRunning(false);
+        return;
+      }
+
+      // Get node with lowest f score
+      openSet.sort((a, b) => a.f - b.f);
+      const current = openSet.shift()!;
+      const currentKey = `${current.x},${current.y}`;
+
+      if (current.x === goal.x && current.y === goal.y) {
+        // Reconstruct path
+        const finalPath: {x: number, y: number}[] = [];
+        let temp = current;
+        while (temp) {
+          finalPath.unshift({x: temp.x, y: temp.y});
+          const prev = cameFrom.get(`${temp.x},${temp.y}`);
+          if (!prev) break;
+          temp = prev as any;
+        }
+        setPath(finalPath);
+        
+        // Animate path with anime.js
+        anime({
+          targets: '.path-segment',
+          strokeDashoffset: [anime.setDashoffset, 0],
+          easing: 'easeInOutSine',
+          duration: 1500,
+          delay: anime.stagger(100)
+        });
+        
+        setIsRunning(false);
+        return;
+      }
+
+      exploredSet.add(currentKey);
+      setExplored(new Set(exploredSet));
+
+      // Animate current cell
+      anime({
+        targets: `#cell-${current.x}-${current.y}`,
+        scale: [1, 1.2, 1],
+        duration: 300,
+        easing: 'easeOutElastic(1, .5)'
+      });
+
+      // Check neighbors
+      const neighbors = [
+        {x: current.x + 1, y: current.y},
+        {x: current.x - 1, y: current.y},
+        {x: current.x, y: current.y + 1},
+        {x: current.x, y: current.y - 1},
+      ];
+
+      for (const neighbor of neighbors) {
+        if (neighbor.x < 0 || neighbor.x >= gridSize || 
+            neighbor.y < 0 || neighbor.y >= grid.length ||
+            grid[neighbor.y][neighbor.x] === 1) {
+          continue;
+        }
+
+        const neighborKey = `${neighbor.x},${neighbor.y}`;
+        const tentativeG = gScore.get(currentKey)! + 1;
+
+        if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)!) {
+          cameFrom.set(neighborKey, {x: current.x, y: current.y});
+          gScore.set(neighborKey, tentativeG);
+          const f = tentativeG + heuristic(neighbor, goal);
+          
+          if (!openSet.find(n => n.x === neighbor.x && n.y === neighbor.y)) {
+            openSet.push({...neighbor, g: tentativeG, f});
+          }
+        }
+      }
+
+      setTimeout(animateStep, 50);
+    };
+
+    animateStep();
+  }, [isRunning, grid, goal]);
+
+  const handleReset = () => {
+    setIsRunning(false);
+    setExplored(new Set());
+    setPath([]);
+  };
+
+  return (
+    <GlowCard className="p-4 space-y-3" glowColor="emerald">
+      <div className="flex items-center justify-between">
+        <h3 className="text-slate-50 text-sm font-semibold">A* Pathfinding (Heuristic Search)</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsRunning(true)}
+            disabled={isRunning || path.length > 0}
+            className="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-emerald-300 text-xs transition-all disabled:opacity-50"
+          >
+            Start
+          </button>
+          <button
+            onClick={handleReset}
+            className="px-3 py-1 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-xs transition-all"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <StatBadge label="Explored" value={explored.size} color="emerald" />
+        <StatBadge label="Path Length" value={path.length} color="emerald" />
+      </div>
+
+      <svg
+        ref={svgRef}
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-auto rounded-lg bg-slate-950/70 border border-slate-800"
+      >
+        {/* Draw grid */}
+        {grid.map((row, y) =>
+          row.map((cell, x) => {
+            const isExplored = explored.has(`${x},${y}`);
+            const isPath = path.some(p => p.x === x && p.y === y);
+            const isStart = x === start.x && y === start.y;
+            const isGoal = x === goal.x && y === goal.y;
+
+            let fill = '#0f172a';
+            if (cell === 1) fill = '#1e293b';
+            if (isExplored && !isPath) fill = '#0ea5e920';
+            if (isPath) fill = '#10b981';
+            if (isStart) fill = '#0ea5e9';
+            if (isGoal) fill = '#a78bfa';
+
+            return (
+              <rect
+                key={`${x}-${y}`}
+                id={`cell-${x}-${y}`}
+                x={x * cellSize}
+                y={y * cellSize}
+                width={cellSize}
+                height={cellSize}
+                fill={fill}
+                stroke="#334155"
+                strokeWidth={0.5}
+              />
+            );
+          })
+        )}
+
+        {/* Draw path */}
+        {path.length > 1 && path.map((p, i) => {
+          if (i === 0) return null;
+          const prev = path[i - 1];
+          return (
+            <line
+              key={`path-${i}`}
+              className="path-segment"
+              x1={prev.x * cellSize + cellSize / 2}
+              y1={prev.y * cellSize + cellSize / 2}
+              x2={p.x * cellSize + cellSize / 2}
+              y2={p.y * cellSize + cellSize / 2}
+              stroke="#fbbf24"
+              strokeWidth={3}
+              strokeLinecap="round"
+            />
+          );
+        })}
+      </svg>
+
+      <div className="flex gap-3 text-[10px]">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 bg-sky-500 rounded"></div>
+          <span className="text-slate-400">Start</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 bg-purple-500 rounded"></div>
+          <span className="text-slate-400">Goal</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 bg-emerald-500 rounded"></div>
+          <span className="text-slate-400">Path</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 bg-slate-800 rounded"></div>
+          <span className="text-slate-400">Wall</span>
+        </div>
+      </div>
+
+      <p className="text-[11px] text-slate-400 leading-snug">
+        A* uses heuristics (Manhattan distance) to guide search toward the goal. It explores fewer
+        nodes than Dijkstra while guaranteeing the optimal path.
+      </p>
+    </GlowCard>
+  );
+};
+
 const GraphAlgorithms: React.FC = () => {
   return (
     <div className="w-full space-y-6">
@@ -262,6 +507,8 @@ const GraphAlgorithms: React.FC = () => {
           <DijkstraViz />
           <GraphConnectivityViz />
         </div>
+
+        <AStarViz />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <GlowCard className="p-4 space-y-3" glowColor="sky">

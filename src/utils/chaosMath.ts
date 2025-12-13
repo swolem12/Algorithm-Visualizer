@@ -33,15 +33,15 @@ export function lorenzStep(
   x: number,
   y: number,
   z: number,
-  dt: number,
   sigma = 10,
   rho = 28,
-  beta = 8 / 3
-): [number, number, number] {
+  beta = 8 / 3,
+  dt = 0.01
+): { x: number; y: number; z: number } {
   const dx = sigma * (y - x);
   const dy = x * (rho - z) - y;
   const dz = x * y - beta * z;
-  return [x + dx * dt, y + dy * dt, z + dz * dt];
+  return { x: x + dx * dt, y: y + dy * dt, z: z + dz * dt };
 }
 
 // Ikeda map

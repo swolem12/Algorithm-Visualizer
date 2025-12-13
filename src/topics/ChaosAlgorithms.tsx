@@ -1,8 +1,12 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+// @ts-ignore
+const anime = require('animejs').default || require('animejs');
 import {
   logisticStep,
   iterateLogisticMap,
+  lorenzStep,
 } from "../utils/chaosMath";
+import { GlowCard, StatBadge } from "../components/FuturisticUI";
 
 // Time Series Visualizer
 const TimeSeriesPlot: React.FC<{ r: number }> = ({ r }) => {
@@ -210,6 +214,268 @@ const BifurcationDiagram: React.FC = () => {
   );
 };
 
+// Lorenz Attractor 3D Projection
+const LorenzAttractor: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isRunning, setIsRunning] = useState(true);
+  const [rotationY, setRotationY] = useState(0);
+  const pointsRef = useRef<{x: number; y: number; z: number}[]>([]);
+
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Lorenz system parameters
+    const sigma = 10;
+    const rho = 28;
+    const beta = 8/3;
+    const dt = 0.01;
+
+    // Initialize position
+    let state = { x: 0.1, y: 0, z: 0 };
+
+    const animate = () => {
+      // Update Lorenz system
+      const newState = lorenzStep(state.x, state.y, state.z, sigma, rho, beta, dt);
+      state = newState;
+      
+      // Store point
+      pointsRef.current.push({...state});
+      if (pointsRef.current.length > 1500) {
+        pointsRef.current.shift();
+      }
+
+      // Clear canvas with fade effect
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.02)';
+      ctx.fillRect(0, 0, width, height);
+
+      // Rotate for 3D effect
+      setRotationY(r => r + 0.002);
+
+      // Project and draw points
+      ctx.strokeStyle = '#0ea5e9';
+      ctx.lineWidth = 1;
+      
+      pointsRef.current.forEach((point, i) => {
+        if (i === 0) return;
+        
+        const prev = pointsRef.current[i - 1];
+        
+        // Simple 3D rotation and projection
+        const scale = 5;
+        const cosY = Math.cos(rotationY);
+        const sinY = Math.sin(rotationY);
+        
+        const x1 = prev.x * cosY - prev.z * sinY;
+        const z1 = prev.x * sinY + prev.z * cosY;
+        const x2 = point.x * cosY - point.z * sinY;
+        const z2 = point.x * sinY + point.z * cosY;
+        
+        const sx1 = width/2 + x1 * scale;
+        const sy1 = height/2 - prev.y * scale + z1 * 0.5;
+        const sx2 = width/2 + x2 * scale;
+        const sy2 = height/2 - point.y * scale + z2 * 0.5;
+        
+        // Color based on height
+        const hue = 200 + (point.y / 50) * 60;
+        ctx.strokeStyle = `hsla(${hue}, 80%, 60%, ${i / pointsRef.current.length})`;
+        
+        ctx.beginPath();
+        ctx.moveTo(sx1, sy1);
+        ctx.lineTo(sx2, sy2);
+        ctx.stroke();
+      });
+
+      if (isRunning) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    animate();
+  }, [isRunning, rotationY]);
+
+  return (
+    <GlowCard className="p-4 space-y-3" glowColor="sky">
+      <div className="flex items-center justify-between">
+        <h3 className="text-slate-50 text-sm font-semibold">Lorenz Attractor (Strange Attractor)</h3>
+        <button
+          onClick={() => setIsRunning(!isRunning)}
+          className="px-3 py-1 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/50 rounded-lg text-sky-300 text-xs transition-all"
+        >
+          {isRunning ? "Pause" : "Resume"}
+        </button>
+      </div>
+      
+      <canvas
+        ref={canvasRef}
+        width={450}
+        height={300}
+        className="w-full h-auto rounded-lg bg-slate-950 border border-slate-800"
+      />
+      
+      <div className="flex gap-2">
+        <StatBadge label="σ" value={10} color="sky" />
+        <StatBadge label="ρ" value={28} color="sky" />
+        <StatBadge label="β" value="8/3" color="sky" />
+      </div>
+      
+      <p className="text-[11px] text-slate-400 leading-snug">
+        The Lorenz attractor demonstrates sensitive dependence on initial conditions in atmospheric
+        convection. Two nearby trajectories diverge exponentially - the "butterfly effect."
+      </p>
+    </GlowCard>
+  );
+};
+
+// Mandelbrot Set Zoom
+const MandelbrotZoom: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [zoom, setZoom] = useState(1);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animationRef = useRef<any>(null);
+
+  const drawMandelbrot = (zoom: number, centerX: number, centerY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const imageData = ctx.createImageData(width, height);
+
+    const maxIterations = 100;
+    const scale = 3 / zoom;
+
+    for (let px = 0; px < width; px++) {
+      for (let py = 0; py < height; py++) {
+        const x0 = centerX + (px - width / 2) * (scale / width);
+        const y0 = centerY + (py - height / 2) * (scale / height);
+
+        let x = 0;
+        let y = 0;
+        let iteration = 0;
+
+        while (x * x + y * y <= 4 && iteration < maxIterations) {
+          const xTemp = x * x - y * y + x0;
+          y = 2 * x * y + y0;
+          x = xTemp;
+          iteration++;
+        }
+
+        const idx = (py * width + px) * 4;
+        if (iteration === maxIterations) {
+          imageData.data[idx] = 0;
+          imageData.data[idx + 1] = 0;
+          imageData.data[idx + 2] = 0;
+        } else {
+          const hue = (iteration / maxIterations) * 360;
+          const lightness = iteration < maxIterations ? 50 : 0;
+          const color = hslToRgb(hue, 80, lightness);
+          imageData.data[idx] = color[0];
+          imageData.data[idx + 1] = color[1];
+          imageData.data[idx + 2] = color[2];
+        }
+        imageData.data[idx + 3] = 255;
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+  };
+
+  const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
+    s /= 100;
+    l /= 100;
+    const k = (n: number) => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
+  };
+
+  const handleZoom = () => {
+    setIsAnimating(true);
+    
+    // Anime.js zoom animation
+    if (animationRef.current) {
+      animationRef.current.pause();
+    }
+
+    animationRef.current = anime({
+      targets: { z: zoom },
+      z: zoom * 2,
+      duration: 2000,
+      easing: 'easeInOutQuad',
+      update: (anim: any) => {
+        const currentZoom = anim.animations[0].currentValue;
+        setZoom(currentZoom);
+        drawMandelbrot(currentZoom, -0.5, 0);
+      },
+      complete: () => {
+        setIsAnimating(false);
+      }
+    });
+  };
+
+  const handleReset = () => {
+    if (animationRef.current) {
+      animationRef.current.pause();
+    }
+    setZoom(1);
+    setIsAnimating(false);
+    drawMandelbrot(1, -0.5, 0);
+  };
+
+  useEffect(() => {
+    drawMandelbrot(zoom, -0.5, 0);
+  }, []);
+
+  return (
+    <GlowCard className="p-4 space-y-3" glowColor="purple">
+      <div className="flex items-center justify-between">
+        <h3 className="text-slate-50 text-sm font-semibold">Mandelbrot Set (Infinite Complexity)</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={handleZoom}
+            disabled={isAnimating}
+            className="px-3 py-1 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 rounded-lg text-purple-300 text-xs transition-all disabled:opacity-50"
+          >
+            Zoom In
+          </button>
+          <button
+            onClick={handleReset}
+            className="px-3 py-1 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-xs transition-all"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+      
+      <canvas
+        ref={canvasRef}
+        width={450}
+        height={300}
+        className="w-full h-auto rounded-lg border border-slate-800 cursor-pointer"
+      />
+      
+      <StatBadge label="Zoom Level" value={`${zoom.toFixed(1)}x`} color="purple" />
+      
+      <p className="text-[11px] text-slate-400 leading-snug">
+        The Mandelbrot set exhibits self-similarity at all scales. No matter how far you zoom, new
+        intricate patterns emerge - a hallmark of fractal geometry.
+      </p>
+    </GlowCard>
+  );
+};
+
 // Main Chaos Algorithms Component
 const ChaosAlgorithms: React.FC = () => {
   const [r, setR] = useState(3.7);
@@ -274,6 +540,10 @@ const ChaosAlgorithms: React.FC = () => {
         </div>
         <div className="w-full">
           <BifurcationDiagram />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <LorenzAttractor />
+          <MandelbrotZoom />
         </div>
       </section>
 
