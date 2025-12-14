@@ -1,4 +1,185 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import { GlowCard, StatBadge } from "../components/FuturisticUI";
+// @ts-ignore
+const anime = require('animejs').default || require('animejs');
+
+// K-Means Clustering Visualization
+const KMeansViz: React.FC = () => {
+  const [points] = useState(() => {
+    const pts: {x: number, y: number}[] = [];
+    // Cluster 1
+    for (let i = 0; i < 15; i++) {
+      pts.push({ x: 20 + Math.random() * 40, y: 20 + Math.random() * 40 });
+    }
+    // Cluster 2
+    for (let i = 0; i < 15; i++) {
+      pts.push({ x: 80 + Math.random() * 40, y: 30 + Math.random() * 40 });
+    }
+    // Cluster 3
+    for (let i = 0; i < 15; i++) {
+      pts.push({ x: 50 + Math.random() * 40, y: 80 + Math.random() * 40 });
+    }
+    return pts;
+  });
+  
+  const [centroids, setCentroids] = useState([
+    { x: 30, y: 30 },
+    { x: 70, y: 50 },
+    { x: 60, y: 90 }
+  ]);
+  const [assignments, setAssignments] = useState<number[]>([]);
+  const [iteration, setIteration] = useState(0);
+  const [running, setRunning] = useState(false);
+  
+  const colors = ['#0ea5e9', '#22c55e', '#a78bfa'];
+  
+  const step = async () => {
+    // Assign points to nearest centroid
+    const newAssignments = points.map(p => {
+      let minDist = Infinity;
+      let cluster = 0;
+      centroids.forEach((c, i) => {
+        const dist = Math.sqrt((p.x - c.x) ** 2 + (p.y - c.y) ** 2);
+        if (dist < minDist) {
+          minDist = dist;
+          cluster = i;
+        }
+      });
+      return cluster;
+    });
+    setAssignments(newAssignments);
+    
+    // Animate point color changes
+    anime({
+      targets: '.kmeans-point',
+      scale: [1, 1.3, 1],
+      duration: 400,
+      easing: 'easeOutElastic(1, .6)',
+      delay: anime.stagger(30)
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    // Update centroids
+    const newCentroids = centroids.map((_, i) => {
+      const clusterPoints = points.filter((_, idx) => newAssignments[idx] === i);
+      if (clusterPoints.length === 0) return centroids[i];
+      const avgX = clusterPoints.reduce((sum, p) => sum + p.x, 0) / clusterPoints.length;
+      const avgY = clusterPoints.reduce((sum, p) => sum + p.y, 0) / clusterPoints.length;
+      return { x: avgX, y: avgY };
+    });
+    
+    // Animate centroid movement
+    setCentroids(newCentroids);
+    anime({
+      targets: '.kmeans-centroid',
+      scale: [1, 1.5, 1.2],
+      duration: 600,
+      easing: 'easeOutElastic(1, .5)'
+    });
+    
+    setIteration(i => i + 1);
+  };
+  
+  const runClustering = async () => {
+    setRunning(true);
+    setIteration(0);
+    for (let i = 0; i < 5; i++) {
+      await step();
+      await new Promise(resolve => setTimeout(resolve, 800));
+    }
+    setRunning(false);
+  };
+  
+  const reset = () => {
+    setCentroids([
+      { x: 30, y: 30 },
+      { x: 70, y: 50 },
+      { x: 60, y: 90 }
+    ]);
+    setAssignments([]);
+    setIteration(0);
+  };
+  
+  return (
+    <GlowCard className="p-4 space-y-3" glowColor="emerald">
+      <div className="flex items-center justify-between">
+        <h3 className="text-slate-50 text-sm font-semibold">K-Means Clustering (Animated)</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={runClustering}
+            disabled={running}
+            className="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 rounded-lg text-emerald-300 text-xs transition-all disabled:opacity-50"
+          >
+            {running ? "Running..." : "Start"}
+          </button>
+          <button
+            onClick={reset}
+            disabled={running}
+            className="px-3 py-1 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-xs transition-all disabled:opacity-50"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+      
+      <div className="flex gap-2">
+        <StatBadge label="Iteration" value={iteration} color="emerald" />
+        <StatBadge label="K" value={3} color="sky" />
+      </div>
+      
+      <svg
+        width={400}
+        height={300}
+        viewBox="0 0 140 120"
+        className="w-full h-auto rounded-lg bg-slate-950/70 border border-slate-800"
+      >
+        {/* Points */}
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            className="kmeans-point"
+            cx={p.x}
+            cy={p.y}
+            r={1.5}
+            fill={assignments[i] !== undefined ? colors[assignments[i]] : '#64748b'}
+            opacity={0.8}
+          />
+        ))}
+        
+        {/* Centroids */}
+        {centroids.map((c, i) => (
+          <g key={i}>
+            <circle
+              className="kmeans-centroid"
+              cx={c.x}
+              cy={c.y}
+              r={3}
+              fill={colors[i]}
+              stroke="#fff"
+              strokeWidth={0.5}
+            />
+            <text
+              x={c.x}
+              y={c.y - 6}
+              fontSize={6}
+              fill={colors[i]}
+              textAnchor="middle"
+              fontWeight="bold"
+            >
+              C{i + 1}
+            </text>
+          </g>
+        ))}
+      </svg>
+      
+      <p className="text-[11px] text-slate-400 leading-snug">
+        K-means iteratively assigns points to nearest centroid, then updates centroids to cluster means.
+        Unsupervised learning discovers hidden patterns in unlabeled data.
+      </p>
+    </GlowCard>
+  );
+};
 
 const LinearRegressionDemo: React.FC = () => {
   const points = useMemo(() => {
@@ -139,7 +320,11 @@ const MachineLearningAlgorithms: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <KMeansViz />
           <LinearRegressionDemo />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <TrainingCurve />
         </div>
 

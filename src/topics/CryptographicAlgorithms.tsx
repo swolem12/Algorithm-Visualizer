@@ -1,5 +1,178 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { GlowCard, CodeBlock, StatBadge } from "../components/FuturisticUI";
+// @ts-ignore
+const anime = require('animejs').default || require('animejs');
+
+// Diffie-Hellman Key Exchange Visualization
+const DiffieHellmanViz: React.FC = () => {
+  const [step, setStep] = useState(0);
+  const [p] = useState(23); // Prime modulus
+  const [g] = useState(5);  // Generator
+  const [alicePrivate] = useState(6);
+  const [bobPrivate] = useState(15);
+  
+  const alicePublic = useMemo(() => Math.pow(g, alicePrivate) % p, []);
+  const bobPublic = useMemo(() => Math.pow(g, bobPrivate) % p, []);
+  
+  const aliceShared = useMemo(() => Math.pow(bobPublic, alicePrivate) % p, []);
+  const bobShared = useMemo(() => Math.pow(alicePublic, bobPrivate) % p, []);
+  
+  const runExchange = async () => {
+    setStep(0);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Step 1: Agree on public parameters
+    setStep(1);
+    anime({
+      targets: '.dh-params',
+      scale: [0.8, 1],
+      opacity: [0, 1],
+      duration: 600,
+      easing: 'easeOutElastic(1, .6)'
+    });
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Step 2: Alice generates public key
+    setStep(2);
+    anime({
+      targets: '.dh-alice-pub',
+      translateX: [0, 100, 0],
+      scale: [1, 1.2, 1],
+      duration: 1000,
+      easing: 'easeInOutQuad'
+    });
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    
+    // Step 3: Bob generates public key
+    setStep(3);
+    anime({
+      targets: '.dh-bob-pub',
+      translateX: [0, -100, 0],
+      scale: [1, 1.2, 1],
+      duration: 1000,
+      easing: 'easeInOutQuad'
+    });
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    
+    // Step 4: Exchange public keys
+    setStep(4);
+    anime({
+      targets: '.dh-exchange',
+      opacity: [0, 1],
+      scale: [0.5, 1],
+      duration: 800,
+      easing: 'easeOutElastic(1, .8)'
+    });
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Step 5: Compute shared secret
+    setStep(5);
+    anime({
+      targets: '.dh-shared',
+      scale: [0, 1.3, 1],
+      opacity: [0, 1],
+      duration: 1000,
+      easing: 'easeOutElastic(1, .5)',
+      delay: anime.stagger(200)
+    });
+  };
+  
+  const reset = () => setStep(0);
+  
+  return (
+    <GlowCard className="p-4 space-y-3" glowColor="cyan">
+      <div className="flex items-center justify-between">
+        <h3 className="text-slate-50 text-sm font-semibold">Diffie-Hellman Key Exchange</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={runExchange}
+            disabled={step > 0 && step < 5}
+            className="px-3 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 rounded-lg text-cyan-300 text-xs transition-all disabled:opacity-50"
+          >
+            {step === 0 ? "Start" : step === 5 ? "Restart" : "Running..."}
+          </button>
+          <button
+            onClick={reset}
+            className="px-3 py-1 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-xs transition-all"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+      
+      <div className="space-y-3 text-[11px]">
+        {/* Public Parameters */}
+        <div className={`dh-params p-3 rounded-lg border ${step >= 1 ? 'bg-purple-500/10 border-purple-500/30' : 'bg-slate-800/30 border-slate-700'}`}>
+          <div className="text-purple-300 font-semibold mb-1">Public Parameters</div>
+          <div className="flex gap-4">
+            <span className="text-slate-300">p (prime) = {p}</span>
+            <span className="text-slate-300">g (generator) = {g}</span>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3">
+          {/* Alice */}
+          <div className="space-y-2">
+            <div className={`p-3 rounded-lg border ${step >= 2 ? 'bg-pink-500/10 border-pink-500/30' : 'bg-slate-800/30 border-slate-700'}`}>
+              <div className="text-pink-300 font-semibold mb-1">Alice</div>
+              <div className="text-slate-300">Private: {alicePrivate}</div>
+              {step >= 2 && (
+                <div className="dh-alice-pub text-pink-400 font-bold mt-1">
+                  Public: {alicePublic}
+                </div>
+              )}
+            </div>
+            
+            {step >= 5 && (
+              <div className="dh-shared p-3 rounded-lg bg-emerald-500/20 border border-emerald-500/50">
+                <div className="text-emerald-300 font-semibold">Shared Secret</div>
+                <div className="text-emerald-400 text-lg font-bold">{aliceShared}</div>
+              </div>
+            )}
+          </div>
+          
+          {/* Bob */}
+          <div className="space-y-2">
+            <div className={`p-3 rounded-lg border ${step >= 3 ? 'bg-sky-500/10 border-sky-500/30' : 'bg-slate-800/30 border-slate-700'}`}>
+              <div className="text-sky-300 font-semibold mb-1">Bob</div>
+              <div className="text-slate-300">Private: {bobPrivate}</div>
+              {step >= 3 && (
+                <div className="dh-bob-pub text-sky-400 font-bold mt-1">
+                  Public: {bobPublic}
+                </div>
+              )}
+            </div>
+            
+            {step >= 5 && (
+              <div className="dh-shared p-3 rounded-lg bg-emerald-500/20 border border-emerald-500/50">
+                <div className="text-emerald-300 font-semibold">Shared Secret</div>
+                <div className="text-emerald-400 text-lg font-bold">{bobShared}</div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Exchange Arrow */}
+        {step >= 4 && (
+          <div className="dh-exchange text-center">
+            <div className="text-purple-400 text-xl">⇄</div>
+            <div className="text-purple-300 text-[10px]">Public keys exchanged over insecure channel</div>
+          </div>
+        )}
+      </div>
+      
+      <div className="flex gap-2">
+        <StatBadge label="Step" value={`${step}/5`} color="cyan" />
+        <StatBadge label="Match" value={aliceShared === bobShared ? "✓" : "..."} color={aliceShared === bobShared ? "emerald" : "slate"} />
+      </div>
+      
+      <p className="text-[11px] text-slate-400 leading-snug">
+        Alice and Bob establish a shared secret over a public channel without transmitting the secret itself.
+        Security relies on discrete logarithm problem difficulty.
+      </p>
+    </GlowCard>
+  );
+};
 
 // Caesar Cipher Visualization
 const CaesarCipherViz: React.FC = () => {
@@ -297,12 +470,16 @@ const CryptographicAlgorithms: React.FC = () => {
 
       <section className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <DiffieHellmanViz />
           <CaesarCipherViz />
-          <HashViz />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <HashViz />
           <XOREncryptionViz />
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <RSAViz />
         </div>
 

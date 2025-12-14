@@ -1,5 +1,222 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { GlowCard, CodeBlock, StatBadge } from "../components/FuturisticUI";
+// @ts-ignore
+const anime = require('animejs').default || require('animejs');
+
+// Fire Particle System
+const FireParticlesViz: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [running, setRunning] = useState(false);
+  const [particleCount, setParticleCount] = useState(0);
+  const particlesRef = useRef<{x: number, y: number, vx: number, vy: number, life: number, maxLife: number}[]>([]);
+  const frameRef = useRef<number>();
+  
+  useEffect(() => {
+    if (!running) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    const animate = () => {
+      ctx.fillStyle = 'rgba(10, 10, 20, 0.2)';
+      ctx.fillRect(0, 0, width, height);
+      
+      // Spawn new particles
+      if (Math.random() < 0.3) {
+        for (let i = 0; i < 3; i++) {
+          particlesRef.current.push({
+            x: width / 2 + (Math.random() - 0.5) * 60,
+            y: height - 10,
+            vx: (Math.random() - 0.5) * 2,
+            vy: -2 - Math.random() * 3,
+            life: 60,
+            maxLife: 60
+          });
+        }
+      }
+      
+      // Update and draw particles
+      particlesRef.current = particlesRef.current.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.05; // Gravity
+        p.life--;
+        
+        if (p.life <= 0) return false;
+        
+        const alpha = p.life / p.maxLife;
+        const size = 3 + (1 - alpha) * 4;
+        
+        // Color gradient: yellow -> orange -> red
+        const hue = 60 * alpha; // 60 = yellow, 0 = red
+        ctx.fillStyle = `hsla(${hue}, 100%, ${50 + alpha * 30}%, ${alpha * 0.9})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        return true;
+      });
+      
+      setParticleCount(particlesRef.current.length);
+      frameRef.current = requestAnimationFrame(animate);
+    };
+    
+    animate();
+    
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [running]);
+  
+  const toggle = () => {
+    if (!running) {
+      particlesRef.current = [];
+    }
+    setRunning(!running);
+  };
+  
+  return (
+    <GlowCard className="p-4 space-y-3" glowColor="orange">
+      <div className="flex items-center justify-between">
+        <h3 className="text-slate-50 text-sm font-semibold">Fire Particle System</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={toggle}
+            className="px-3 py-1 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/50 rounded-lg text-orange-300 text-xs transition-all"
+          >
+            {running ? "Stop" : "Start"}
+          </button>
+        </div>
+      </div>
+      
+      <div className="flex gap-2">
+        <StatBadge label="Particles" value={particleCount} color="orange" />
+        <StatBadge label="Status" value={running ? "Active" : "Idle"} color={running ? "emerald" : "slate"} />
+      </div>
+      
+      <div className="flex justify-center">
+        <canvas
+          ref={canvasRef}
+          width={400}
+          height={300}
+          className="rounded-lg border border-slate-800 bg-slate-950"
+        />
+      </div>
+      
+      <p className="text-[11px] text-slate-400 leading-snug">
+        Real-time particle system simulates fire using spawning, physics (velocity, gravity), and lifecycle management.
+        Each particle fades from yellow to red as it ages.
+      </p>
+    </GlowCard>
+  );
+};
+
+// Wave Interference Simulation
+const WaveInterferenceViz: React.FC = () => {
+  const [frame, setFrame] = useState(0);
+  const [running, setRunning] = useState(false);
+  
+  useEffect(() => {
+    if (!running) return;
+    const interval = setInterval(() => {
+      setFrame(f => f + 1);
+    }, 50);
+    return () => clearInterval(interval);
+  }, [running]);
+  
+  const width = 400;
+  const height = 300;
+  const source1 = { x: 120, y: 150 };
+  const source2 = { x: 280, y: 150 };
+  
+  // Sample grid for interference pattern
+  const gridSize = 40;
+  const cells = useMemo(() => {
+    const result: {x: number, y: number, intensity: number}[] = [];
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const x = (i / gridSize) * width;
+        const y = (j / gridSize) * height;
+        
+        const d1 = Math.sqrt((x - source1.x) ** 2 + (y - source1.y) ** 2);
+        const d2 = Math.sqrt((x - source2.x) ** 2 + (y - source2.y) ** 2);
+        
+        const wavelength = 30;
+        const wave1 = Math.sin((d1 / wavelength) * 2 * Math.PI - frame * 0.2);
+        const wave2 = Math.sin((d2 / wavelength) * 2 * Math.PI - frame * 0.2);
+        
+        const intensity = (wave1 + wave2) / 2;
+        result.push({ x, y, intensity });
+      }
+    }
+    return result;
+  }, [frame]);
+  
+  return (
+    <GlowCard className="p-4 space-y-3" glowColor="cyan">
+      <div className="flex items-center justify-between">
+        <h3 className="text-slate-50 text-sm font-semibold">Wave Interference Simulation</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setRunning(!running)}
+            className="px-3 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 rounded-lg text-cyan-300 text-xs transition-all"
+          >
+            {running ? "Pause" : "Start"}
+          </button>
+          <button
+            onClick={() => setFrame(0)}
+            className="px-3 py-1 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-xs transition-all"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+      
+      <div className="flex gap-2">
+        <StatBadge label="Frame" value={frame} color="cyan" />
+        <StatBadge label="Sources" value={2} color="purple" />
+      </div>
+      
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-auto rounded-lg bg-slate-950/70 border border-slate-800"
+      >
+        {/* Interference pattern */}
+        {cells.map((cell, i) => {
+          const color = cell.intensity > 0 
+            ? `rgba(34, 211, 238, ${cell.intensity * 0.4})`
+            : `rgba(147, 51, 234, ${-cell.intensity * 0.4})`;
+          return (
+            <rect
+              key={i}
+              x={cell.x}
+              y={cell.y}
+              width={width / gridSize}
+              height={height / gridSize}
+              fill={color}
+            />
+          );
+        })}
+        
+        {/* Wave sources */}
+        <circle cx={source1.x} cy={source1.y} r={8} fill="#22d3ee" opacity={0.8} className="animate-pulse" />
+        <circle cx={source2.x} cy={source2.y} r={8} fill="#22d3ee" opacity={0.8} className="animate-pulse" />
+      </svg>
+      
+      <p className="text-[11px] text-slate-400 leading-snug">
+        Two wave sources create interference patterns - constructive (cyan) where waves align, destructive (purple) where they cancel.
+        Demonstrates superposition principle from wave physics.
+      </p>
+    </GlowCard>
+  );
+};
 
 // Conway's Game of Life
 const GameOfLifeViz: React.FC = () => {
@@ -443,6 +660,11 @@ const SimulationAlgorithms: React.FC = () => {
       </header>
 
       <section className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <FireParticlesViz />
+          <WaveInterferenceViz />
+        </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <GameOfLifeViz />
           <FlockingViz />

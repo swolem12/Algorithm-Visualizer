@@ -1,5 +1,197 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { GlowCard, CodeBlock, StatBadge } from "../components/FuturisticUI";
+// @ts-ignore
+const anime = require('animejs').default || require('animejs');
+
+// Traveling Salesman Problem with Genetic Algorithm
+const TSPGeneticViz: React.FC = () => {
+  const cities = useMemo(() => {
+    const count = 10;
+    const pts: {x: number, y: number}[] = [];
+    for (let i = 0; i < count; i++) {
+      pts.push({
+        x: 20 + Math.random() * 160,
+        y: 20 + Math.random() * 100
+      });
+    }
+    return pts;
+  }, []);
+  
+  const [bestRoute, setBestRoute] = useState<number[]>([...Array(cities.length).keys()]);
+  const [bestDistance, setBestDistance] = useState(Infinity);
+  const [generation, setGeneration] = useState(0);
+  const [running, setRunning] = useState(false);
+  
+  const calcDistance = (route: number[]) => {
+    let total = 0;
+    for (let i = 0; i < route.length - 1; i++) {
+      const from = cities[route[i]];
+      const to = cities[route[i + 1]];
+      total += Math.sqrt((to.x - from.x) ** 2 + (to.y - from.y) ** 2);
+    }
+    // Return to start
+    const last = cities[route[route.length - 1]];
+    const first = cities[route[0]];
+    total += Math.sqrt((first.x - last.x) ** 2 + (first.y - last.y) ** 2);
+    return total;
+  };
+  
+  const mutate = (route: number[]) => {
+    const newRoute = [...route];
+    const i = Math.floor(Math.random() * route.length);
+    const j = Math.floor(Math.random() * route.length);
+    [newRoute[i], newRoute[j]] = [newRoute[j], newRoute[i]];
+    return newRoute;
+  };
+  
+  const evolve = async () => {
+    let current = bestRoute;
+    let currentDist = bestDistance === Infinity ? calcDistance(current) : bestDistance;
+    
+    for (let gen = 0; gen < 30; gen++) {
+      // Generate variations
+      const candidates = [current];
+      for (let i = 0; i < 20; i++) {
+        candidates.push(mutate(current));
+      }
+      
+      // Find best
+      const sorted = candidates.map(r => ({ route: r, dist: calcDistance(r) }))
+        .sort((a, b) => a.dist - b.dist);
+      
+      if (sorted[0].dist < currentDist) {
+        current = sorted[0].route;
+        currentDist = sorted[0].dist;
+        setBestRoute(current);
+        setBestDistance(currentDist);
+        
+        // Animate path improvement
+        anime({
+          targets: '.tsp-path',
+          strokeDashoffset: [anime.setDashoffset, 0],
+          easing: 'easeInOutSine',
+          duration: 800,
+          delay: 0
+        });
+      }
+      
+      setGeneration(gen + 1);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    setRunning(false);
+  };
+  
+  const runTSP = () => {
+    setRunning(true);
+    setGeneration(0);
+    evolve();
+  };
+  
+  const reset = () => {
+    setBestRoute([...Array(cities.length).keys()]);
+    setBestDistance(Infinity);
+    setGeneration(0);
+  };
+  
+  // Build path
+  const pathData = useMemo(() => {
+    const pts = bestRoute.map(i => cities[i]);
+    let path = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      path += ` L ${pts[i].x} ${pts[i].y}`;
+    }
+    path += ` L ${pts[0].x} ${pts[0].y}`; // Close loop
+    return path;
+  }, [bestRoute, cities]);
+  
+  return (
+    <GlowCard className="p-4 space-y-3" glowColor="pink">
+      <div className="flex items-center justify-between">
+        <h3 className="text-slate-50 text-sm font-semibold">TSP - Genetic Algorithm</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={runTSP}
+            disabled={running}
+            className="px-3 py-1 bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/50 rounded-lg text-pink-300 text-xs transition-all disabled:opacity-50"
+          >
+            {running ? "Evolving..." : "Evolve"}
+          </button>
+          <button
+            onClick={reset}
+            disabled={running}
+            className="px-3 py-1 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 text-xs transition-all disabled:opacity-50"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+      
+      <div className="flex gap-2">
+        <StatBadge label="Generation" value={generation} color="pink" />
+        <StatBadge label="Distance" value={bestDistance === Infinity ? "∞" : bestDistance.toFixed(1)} color="sky" />
+        <StatBadge label="Cities" value={cities.length} color="purple" />
+      </div>
+      
+      <svg
+        width={400}
+        height={280}
+        viewBox="0 0 200 140"
+        className="w-full h-auto rounded-lg bg-slate-950/70 border border-slate-800"
+      >
+        {/* Path */}
+        <path
+          className="tsp-path"
+          d={pathData}
+          fill="none"
+          stroke="#ec4899"
+          strokeWidth={1}
+          strokeDasharray="4 2"
+          opacity={0.6}
+        />
+        
+        {/* Cities */}
+        {cities.map((city, i) => (
+          <g key={i}>
+            <circle
+              cx={city.x}
+              cy={city.y}
+              r={3}
+              fill="#ec4899"
+              stroke="#fff"
+              strokeWidth={0.5}
+            />
+            <text
+              x={city.x}
+              y={city.y - 6}
+              fontSize={6}
+              fill="#f9a8d4"
+              textAnchor="middle"
+              fontWeight="bold"
+            >
+              {i}
+            </text>
+          </g>
+        ))}
+        
+        {/* Start marker */}
+        <circle
+          cx={cities[bestRoute[0]].x}
+          cy={cities[bestRoute[0]].y}
+          r={5}
+          fill="none"
+          stroke="#22c55e"
+          strokeWidth={1}
+          className="animate-pulse"
+        />
+      </svg>
+      
+      <p className="text-[11px] text-slate-400 leading-snug">
+        Find shortest tour visiting all cities. Genetic algorithm evolves route permutations via mutation and selection.
+        NP-hard problem - optimal solution intractable for large N.
+      </p>
+    </GlowCard>
+  );
+};
 
 // Genetic Algorithm Simulation
 const GeneticAlgorithmViz: React.FC = () => {
@@ -244,7 +436,11 @@ const EvolutionaryAlgorithms: React.FC = () => {
 
       <section className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TSPGeneticViz />
           <GeneticAlgorithmViz />
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ParticleSwarmViz />
         </div>
 
