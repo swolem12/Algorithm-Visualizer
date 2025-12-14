@@ -87,9 +87,9 @@ const MonteCarloPi: React.FC = () => {
         {/* Unit square */}
         <rect x={margin} y={margin} width={boxSize} height={boxSize} fill="#020617" stroke="#1e293b" strokeWidth={1} />
         
-        {/* Quarter circle (radius = boxSize, centered at bottom-left of square) */}
+        {/* Quarter circle (radius = boxSize, centered at bottom-left, arc from top-left to bottom-right) */}
         <path 
-          d={`M ${margin} ${margin + boxSize} A ${boxSize} ${boxSize} 0 0 1 ${margin + boxSize} ${margin}`} 
+          d={`M ${margin} ${margin} A ${boxSize} ${boxSize} 0 0 1 ${margin + boxSize} ${margin + boxSize}`} 
           fill="rgba(34, 197, 94, 0.05)" 
           stroke="#22c55e" 
           strokeWidth={1.5}
