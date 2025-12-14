@@ -87,10 +87,10 @@ const MonteCarloPi: React.FC = () => {
         {/* Unit square */}
         <rect x={margin} y={margin} width={boxSize} height={boxSize} fill="#020617" stroke="#1e293b" strokeWidth={1} />
         
-        {/* Quarter circle (radius = boxSize, centered at bottom-left, arc from top-left to bottom-right) */}
+        {/* Quarter circle centered at top-left corner, arc from right-top to left-bottom */}
         <path 
-          d={`M ${margin} ${margin} A ${boxSize} ${boxSize} 0 0 1 ${margin + boxSize} ${margin + boxSize}`} 
-          fill="rgba(34, 197, 94, 0.05)" 
+          d={`M ${margin + boxSize} ${margin} A ${boxSize} ${boxSize} 0 0 1 ${margin} ${margin + boxSize}`} 
+          fill="rgba(34, 197, 94, 0.1)" 
           stroke="#22c55e" 
           strokeWidth={1.5}
           strokeDasharray="4,4"
@@ -101,7 +101,7 @@ const MonteCarloPi: React.FC = () => {
           <circle
             key={idx}
             cx={margin + s.x * boxSize}
-            cy={margin + (1 - s.y) * boxSize}
+            cy={margin + s.y * boxSize}
             r={1.2}
             fill={s.inside ? "#22c55e" : "#ef4444"}
             opacity={0.8}
