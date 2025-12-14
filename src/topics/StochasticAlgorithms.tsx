@@ -84,16 +84,27 @@ const MonteCarloPi: React.FC = () => {
     <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2">
       <h3 className="text-slate-50 text-sm font-semibold">Monte Carlo π Estimation</h3>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="w-full h-auto rounded-xl bg-slate-950/80 border border-slate-800">
-        <rect x={margin} y={height - margin - boxSize} width={boxSize} height={boxSize} fill="#020617" stroke="#1e293b" strokeWidth={1} />
-        <path d={`M ${margin} ${height - margin} A ${boxSize} ${boxSize} 0 0 1 ${width - margin} ${margin}`} fill="none" stroke="#475569" strokeWidth={1.2} />
+        {/* Unit square */}
+        <rect x={margin} y={margin} width={boxSize} height={boxSize} fill="#020617" stroke="#1e293b" strokeWidth={1} />
+        
+        {/* Quarter circle (radius = boxSize, centered at bottom-left of square) */}
+        <path 
+          d={`M ${margin} ${margin + boxSize} A ${boxSize} ${boxSize} 0 0 1 ${margin + boxSize} ${margin}`} 
+          fill="rgba(34, 197, 94, 0.05)" 
+          stroke="#22c55e" 
+          strokeWidth={1.5}
+          strokeDasharray="4,4"
+        />
+        
+        {/* Sample points */}
         {samples.map((s, idx) => (
           <circle
             key={idx}
             cx={margin + s.x * boxSize}
-            cy={height - margin - s.y * boxSize}
-            r={1}
-            fill={s.inside ? "#22c55e" : "#38bdf8"}
-            opacity={0.9}
+            cy={margin + (1 - s.y) * boxSize}
+            r={1.2}
+            fill={s.inside ? "#22c55e" : "#ef4444"}
+            opacity={0.8}
           />
         ))}
       </svg>
@@ -102,7 +113,8 @@ const MonteCarloPi: React.FC = () => {
         <span>π ≈ <span className="text-emerald-300 font-semibold">{piEstimate.toFixed(4)}</span></span>
       </div>
       <p className="text-[11px] text-slate-400">
-        Random sampling in unit square. Green points inside quarter-circle. Ratio → π/4 as samples increase.
+        Random sampling in unit square. Green points fall inside quarter-circle (x²+y²≤1). 
+        As samples grow: π ≈ 4 × (inside/total)
       </p>
     </div>
   );
